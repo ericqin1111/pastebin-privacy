@@ -15,34 +15,13 @@ public class PasteReadService {
     }
 
     public PasteReadResult read(String id) {
-        PasteRecord record = storageService.findById(id)
-                .orElseThrow(() -> new PasteNotFoundException("paste not found"));
-
-        if (record.readCount() >= record.maxReads()) {
-            storageService.deleteById(id);
+        AtomicReadResult result = storageService.readAndIncrement(id);
+        if (result.status() == ReadStatus.MISSING) {
+            throw new PasteNotFoundException("paste not found");
+        }
+        if (result.status() == ReadStatus.LIMIT_REACHED) {
             throw new ReadLimitReachedException("paste has been deleted");
         }
-
-        int nextReadCount = record.readCount() + 1;
-        boolean deleteAfterRead = nextReadCount >= record.maxReads();
-
-        PasteRecord updated = new PasteRecord(
-                record.id(),
-                record.iv(),
-                record.ciphertext(),
-                record.type(),
-                record.language(),
-                record.createdAt(),
-                record.maxReads(),
-                nextReadCount
-        );
-
-        if (deleteAfterRead) {
-            storageService.deleteById(id);
-        } else {
-            storageService.save(updated);
-        }
-
-        return new PasteReadResult(record, deleteAfterRead);
+        return new PasteReadResult(result.record(), result.readCountAfter(), result.deletedAfterRead());
     }
 }

@@ -42,6 +42,6 @@ public class PasteController {
     @GetMapping("/{id}")
     public GetPasteResponse getPaste(@PathVariable String id) {
         PasteReadResult result = pasteReadService.read(id);
-        return GetPasteResponseMapper.from(result.record());
+        return GetPasteResponseMapper.from(result.record(), result.readCountAfter());
     }
 }

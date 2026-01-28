@@ -1,7 +1,9 @@
 package com.example.pastebin;
 
 import com.example.pastebin.api.CreatePasteRequest;
+import com.example.pastebin.service.AtomicReadResult;
 import com.example.pastebin.service.PasteStorageService;
+import com.example.pastebin.service.ReadStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
-import java.util.Optional;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
@@ -73,7 +73,13 @@ class PasteControllerTest {
 
     @Test
     void getPaste_returnsNotFound() throws Exception {
-        when(storageService.findById("missing")).thenReturn(Optional.empty());
+        when(storageService.readAndIncrement("missing"))
+                .thenReturn(new AtomicReadResult(
+                        ReadStatus.MISSING,
+                        null,
+                        0,
+                        false
+                ));
 
         mockMvc.perform(get("/api/pastes/missing"))
                 .andExpect(status().isNotFound())

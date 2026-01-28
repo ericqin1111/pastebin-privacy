@@ -5,21 +5,14 @@ import com.example.pastebin.api.ReadLimitReachedException;
 import com.example.pastebin.model.PasteRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,9 +23,6 @@ class PasteReadServiceTest {
 
     @InjectMocks
     private PasteReadService pasteReadService;
-
-    @Captor
-    private ArgumentCaptor<PasteRecord> recordCaptor;
 
     @Test
     void read_incrementsReadCount_andKeepsRecord() {
@@ -47,16 +37,13 @@ class PasteReadServiceTest {
                 1
         );
 
-        when(storageService.findById("id")).thenReturn(Optional.of(record));
+        AtomicReadResult atomicResult = new AtomicReadResult(ReadStatus.OK, record, 2, false);
+        when(storageService.readAndIncrement("id")).thenReturn(atomicResult);
 
         PasteReadResult result = pasteReadService.read("id");
 
-        verify(storageService).save(recordCaptor.capture());
-        verify(storageService, never()).deleteById(anyString());
-
-        PasteRecord updated = recordCaptor.getValue();
-        assertThat(updated.readCount()).isEqualTo(2);
         assertThat(result.record().id()).isEqualTo("id");
+        assertThat(result.readCountAfter()).isEqualTo(2);
         assertThat(result.deleted()).isFalse();
     }
 
@@ -73,12 +60,11 @@ class PasteReadServiceTest {
                 1
         );
 
-        when(storageService.findById("id")).thenReturn(Optional.of(record));
+        AtomicReadResult atomicResult = new AtomicReadResult(ReadStatus.OK, record, 2, true);
+        when(storageService.readAndIncrement("id")).thenReturn(atomicResult);
 
         PasteReadResult result = pasteReadService.read("id");
 
-        verify(storageService).deleteById("id");
-        verify(storageService, never()).save(any(PasteRecord.class));
         assertThat(result.deleted()).isTrue();
     }
 
@@ -95,16 +81,17 @@ class PasteReadServiceTest {
                 1
         );
 
-        when(storageService.findById("id")).thenReturn(Optional.of(record));
+        when(storageService.readAndIncrement("id"))
+                .thenReturn(new AtomicReadResult(ReadStatus.LIMIT_REACHED, null, 0, false));
 
         assertThatThrownBy(() -> pasteReadService.read("id"))
                 .isInstanceOf(ReadLimitReachedException.class);
-        verify(storageService).deleteById("id");
     }
 
     @Test
     void read_throwsWhenMissing() {
-        when(storageService.findById("id")).thenReturn(Optional.empty());
+        when(storageService.readAndIncrement("id"))
+                .thenReturn(new AtomicReadResult(ReadStatus.MISSING, null, 0, false));
 
         assertThatThrownBy(() -> pasteReadService.read("id"))
                 .isInstanceOf(PasteNotFoundException.class);

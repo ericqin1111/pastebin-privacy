@@ -7,7 +7,7 @@ public final class GetPasteResponseMapper {
     private GetPasteResponseMapper() {
     }
 
-    public static GetPasteResponse from(PasteRecord record) {
+    public static GetPasteResponse from(PasteRecord record, int readCountAfter) {
         return new GetPasteResponse(
                 record.id(),
                 record.iv(),
@@ -15,7 +15,7 @@ public final class GetPasteResponseMapper {
                 record.type(),
                 record.language(),
                 record.maxReads(),
-                record.readCount()
+                readCountAfter
         );
     }
 }

@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pastebin-backend
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+paste:
+  expire-time: 10
+  max-reads-limit: 100
+  max-size: 10

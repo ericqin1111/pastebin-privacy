@@ -1,0 +1,26 @@
+name: Deploy Dev Branch
+run-name: ${{ github.actor }} Exec Gitea Actions 🚀
+on:
+  push:
+    branches:
+      - dev**
+jobs:
+  deploy:
+    runs-on: dev
+    container: registry.juntong.ai/gitea/runner
+    steps:
+      - uses: https://git.juntong.ai/actions/checkout@v3
+      - uses: https://git.juntong.ai/actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+          cache: 'gradle'
+      - name: Build with Gradle
+        run: ./gradlew clean build --no-daemon
+      - run: echo "VIRTUAL_HOST=$(git branch --show | tr '/' '\n' | tac | tr '\n' '.' | sed 's/.$//').srv.pastebin.dev.jt.com" >> .env
+      - run: echo "APP_DATABASE_URL=mysql/test_pastebin$(git branch --show | sed 's/dev//g' | tr '/' '_')" >> .env
+      - run: echo "APP_MINIO_BUCKET=pastebin$(git branch --show | sed 's/dev//g' | tr '/' '_')" >> .env
+      - run: echo "BRANCH=$(git branch --show | tr '/' '-')" >> .env
+      # - run: echo "PORT=8403" >> .env
+      - run: docker compose -p pastebin-$(git branch --show | tr '/' '-') down --rmi local
+      - run: docker compose -p pastebin-$(git branch --show | tr '/' '-') up --build -d
